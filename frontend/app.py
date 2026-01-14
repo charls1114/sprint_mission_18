@@ -4,7 +4,9 @@ from PIL import Image
 import time
 
 st.title("영화 평론 리뷰 모음 앱")
+# 사이드바: 영화 추가 및 삭제
 with st.sidebar:
+    # 사이드바: 영화 추가
     st.header("영화 추가하기")
     name = st.text_input("영화 이름")
     director = st.text_input("감독")
@@ -33,7 +35,7 @@ with st.sidebar:
                 "다음과 같은 이유로 영화 추가에 실패했습니다: "
                 + movie_add_response.text
             )
-
+    # 사이드바: 영화 삭제
     st.header("영화 삭제하기")
     del_name = st.text_input("삭제할 영화 이름")
     if st.button("영화 삭제"):
@@ -48,6 +50,7 @@ with st.sidebar:
                 + movie_del_response.text
             )
 
+# 영화 목록 불러오기
 movie_get_response = get("http://127.0.0.1:8000/movies/get")
 if movie_get_response.status_code != 200:
     st.error(
@@ -55,7 +58,10 @@ if movie_get_response.status_code != 200:
         + movie_get_response.text
     )
 movies = movie_get_response.json()
+
+# 메인 페이지: 영화 목록 및 리뷰 작성/조회
 if len(movies) == 0:
+    # 영화가 하나도 없을 때
     st.warning("등록된 영화가 없습니다. 사이드바에서 영화를 추가해 주세요.")
 else:
     with st.expander(label="영화 목록", icon="🎬", expanded=True):
@@ -107,10 +113,13 @@ else:
                             + response.text
                         )
 
+            # 영화 리뷰 목록
             with st.container(border=True):
                 if len(movie["comments"]) == 0:
+                    # 리뷰가 하나도 없을 때
                     st.markdown("**등록된 리뷰가 없습니다.**")
                 else:
+                    # 평균 평점 및 신뢰도 점수 표시
                     st.markdown(f"**{movie['name']} 평균 평점**")
                     comment_score_response = post(
                         f"http://127.0.0.1:8000/movies/comments/{movie['name']}/average_score"
@@ -131,6 +140,7 @@ else:
                             average_score["average_confidence_score"] / 1,
                             text=f"감성 분석 신뢰도 평균: {average_score['average_confidence_score']:.2f}",
                         )
+                    # 리뷰 목록 표시
                     with st.container(border=True, height=300):
                         for i, comment in enumerate(movie["comments"][:10]):
                             with st.container(border=True):
