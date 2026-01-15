@@ -143,6 +143,9 @@ async def compute_average_rating(movie_name: str):
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    host = "127.0.0.1"
+    port = int(os.environ.get("PORT", "8000"))  # 플랫폼이 주는 PORT 우선
+    uvicorn.run("movie:app", host=host, port=port)

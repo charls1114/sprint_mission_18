@@ -3,6 +3,12 @@ from requests import get, post, delete
 from PIL import Image
 import time
 
+
+BACKEND_BASE_URL = st.secrets.get("BACKEND_BASE_URL")
+if not BACKEND_BASE_URL:
+    st.error("BACKEND_BASE_URL이 설정되지 않았습니다. Streamlit Secrets에 등록하세요.")
+    st.stop()
+
 st.title("영화 평론 리뷰 모음 앱")
 # 사이드바: 영화 추가 및 삭제
 with st.sidebar:
@@ -16,7 +22,7 @@ with st.sidebar:
 
     if st.button("영화 추가"):
         movie_add_response = post(
-            "http://127.0.0.1:8000/movies/add",
+            f"{BACKEND_BASE_URL}/movies/add",
             json={
                 "name": name,
                 "director": director,
@@ -39,7 +45,7 @@ with st.sidebar:
     st.header("영화 삭제하기")
     del_name = st.text_input("삭제할 영화 이름")
     if st.button("영화 삭제"):
-        movie_del_response = delete(f"http://127.0.0.1:8000/movies/delete/{del_name}")
+        movie_del_response = delete(f"{BACKEND_BASE_URL}/movies/delete/{del_name}")
         if movie_del_response.status_code == 200:
             st.success("영화가 성공적으로 삭제되었습니다!")
             time.sleep(1)
@@ -51,7 +57,7 @@ with st.sidebar:
             )
 
 # 영화 목록 불러오기
-movie_get_response = get("http://127.0.0.1:8000/movies/get")
+movie_get_response = get(f"{BACKEND_BASE_URL}/movies/get")
 if movie_get_response.status_code != 200:
     st.error(
         "다음과 같은 이유로 영화 목록 불러오기에 실패했습니다: "
@@ -95,7 +101,7 @@ else:
                 if st.form_submit_button(label="리뷰 등록"):
                     with st.spinner("리뷰를 등록하는 중입니다..."):
                         response = post(
-                            "http://127.0.0.1:8000/movies/comments/add",
+                            f"{BACKEND_BASE_URL}/movies/comments/add",
                             json={
                                 "movie_name": movie["name"],
                                 "user_name": user_name,
@@ -122,7 +128,7 @@ else:
                     # 평균 평점 및 신뢰도 점수 표시
                     st.markdown(f"**{movie['name']} 평균 평점**")
                     comment_score_response = post(
-                        f"http://127.0.0.1:8000/movies/comments/{movie['name']}/average_score"
+                        f"{BACKEND_BASE_URL}/movies/comments/{movie['name']}/average_score"
                     )
                     if comment_score_response.status_code != 200:
                         st.error(
@@ -159,7 +165,7 @@ else:
                                     key=f"delete_comment_{movie['name']}_{i}",
                                 ):
                                     delete_response = delete(
-                                        f"http://127.0.0.1:8000/movies/comments/delete/{movie['name']}/{comment['user_name']}"
+                                        f"{BACKEND_BASE_URL}/movies/comments/delete/{movie['name']}/{comment['user_name']}"
                                     )
                                     if delete_response.status_code == 200:
                                         st.success("리뷰가 성공적으로 삭제되었습니다!")
