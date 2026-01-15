@@ -1,10 +1,11 @@
 from typing import List, Optional
 import os
+import json
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
-from transformers import pipeline
+from openai import OpenAI
 
 from sqlmodel import (
     SQLModel,
@@ -104,7 +105,46 @@ class MovieOut(BaseModel):
 # -------------------------------
 # 감성 분석 모델
 # -------------------------------
-model = None
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+
+def analyze_comment_with_openai(text: str) -> tuple[str, float]:
+    """
+    returns: (emotion_label, confidence_score)
+    emotion_label: POSITIVE / NEUTRAL / NEGATIVE
+    confidence_score: 0.0 ~ 1.0 (모델이 추정한 '자기확신' 값)
+    """
+    prompt = f"""
+    당신은 감성 분석 전문가입니다.
+    사용자의 영화 리뷰를 다음 감정 중 하나로 분류해 주세요.:
+    POSITIVE, NEUTRAL, NEGATIVE.
+
+    유효한 JSON 형식으로 응답해 주세요:
+    - label: POSITIVE|NEUTRAL|NEGATIVE 중 하나
+    - confidence: 0.0 부터 1.0 사이의 숫자 (모델의 확신 정도)
+
+    Text: {text}
+    """.strip()
+
+    resp = client.responses.create(
+        model="gpt-4o-mini",
+        input=prompt,
+    )
+    # Responses API에서 텍스트만 추출
+    out = resp.output_text().strip()
+
+    # JSON 파싱(안전장치)
+    try:
+        data = json.loads(out)
+        label = str(data.get("label", "NEUTRAL")).upper()
+        confidence = float(data.get("confidence", 0.5))
+        if label not in {"POSITIVE", "NEUTRAL", "NEGATIVE"}:
+            label = "NEUTRAL"
+        confidence = max(0.0, min(1.0, confidence))
+        return label, confidence
+    except Exception:
+        # 모델이 JSON을 어겼을 때 fallback
+        return "NEUTRAL", 0.5
 
 
 @asynccontextmanager
@@ -112,12 +152,6 @@ async def lifespan(app: FastAPI):
     global model
     # 테이블 생성 (운영에선 migration이 이상적이지만, 과제/프로토타입엔 충분)
     SQLModel.metadata.create_all(engine)
-
-    print("감성 모델 로딩 중.")
-    model = pipeline(
-        "sentiment-analysis", model="tabularisai/multilingual-sentiment-analysis"
-    )
-    print("감성 모델 로딩 완료!")
     yield
     print("Shutting down.")
     model = None
@@ -210,7 +244,7 @@ async def add_comment(comment: CommentIn, session: Session = Depends(get_session
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    emotion, score = analyze_comment(comment.comment)
+    emotion, score = analyze_comment_with_openai(comment.comment)
 
     c = CommentDB(
         movie_id=movie.id,
