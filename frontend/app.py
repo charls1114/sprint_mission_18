@@ -85,101 +85,104 @@ else:
                 st.markdown(f"###### 개봉일: {movie['open_date']}")
                 st.markdown(f"###### 장르: {movie['genre']}")
             with col2:
-                # 리뷰 작성 폼
-                with st.form(key=f"comment_form_{movie['name']}"):
-                    user_name = st.text_input(
-                        "작성자 이름을 입력해 주세요",
-                        key=f"user_name_input_{movie['name']}",
-                    )
-                    rate_score = st.slider(
-                        "평점을 매겨주세요",
-                        min_value=1,
-                        max_value=5,
-                        key=f"rate_score_slider_{movie['name']}",
-                    )
-                    comment = st.text_input(
-                        "리뷰를 작성해 주세요",
-                        key=f"comment_input_{movie['name']}",
-                    )
-                    if st.form_submit_button(label="리뷰 등록"):
-                        with st.spinner("리뷰를 등록하는 중입니다..."):
-                            response = post(
-                                f"{BACKEND_BASE_URL}/movies/comments/add",
-                                json={
-                                    "movie_name": movie["name"],
-                                    "user_name": user_name,
-                                    "rate_score": rate_score,
-                                    "comment": comment,
-                                },
-                            )
-                        if response.status_code == 200:
-                            st.success("리뷰가 성공적으로 등록되었습니다!")
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error(
-                                "다음과 같은 이유로 리뷰 제출에 실패했습니다: "
-                                + response.text
-                            )
-
-            # 영화 리뷰 목록
-            with st.container(border=True, height=300):
-                if len(movie["comments"]) == 0:
-                    # 리뷰가 하나도 없을 때
-                    st.markdown("**등록된 리뷰가 없습니다.**")
-                else:
-                    # 평균 평점 및 신뢰도 점수 표시
-                    st.markdown(f"**{movie['name']} 평균 평점**")
-                    comment_score_response = post(
-                        f"{BACKEND_BASE_URL}/movies/comments/{movie['name']}/average_score"
-                    )
-                    if comment_score_response.status_code != 200:
-                        st.error(
-                            "다음과 같은 이유로 평균 평점 불러오기에 실패했습니다: "
-                            + comment_score_response.text
-                        )
-                        continue
+                # 영화 리뷰 목록
+                with st.container(border=True, height=300):
+                    if len(movie["comments"]) == 0:
+                        # 리뷰가 하나도 없을 때
+                        st.markdown("**등록된 리뷰가 없습니다.**")
                     else:
-                        average_score = comment_score_response.json()
-                        st.progress(
-                            average_score["average_rate_score"] / 5,
-                            text=f"영화 평점: {average_score['average_rate_score']:.2f}/5",
+                        # 평균 평점 및 신뢰도 점수 표시
+                        st.markdown(f"**{movie['name']} 평균 평점**")
+                        comment_score_response = post(
+                            f"{BACKEND_BASE_URL}/movies/comments/{movie['name']}/average_score"
                         )
-                        st.progress(
-                            average_score["average_confidence_score"] / 1,
-                            text=f"감성 분석 신뢰도 평균: {average_score['average_confidence_score']:.2f}",
+                        if comment_score_response.status_code != 200:
+                            st.error(
+                                "다음과 같은 이유로 평균 평점 불러오기에 실패했습니다: "
+                                + comment_score_response.text
+                            )
+                            continue
+                        else:
+                            average_score = comment_score_response.json()
+                            st.progress(
+                                average_score["average_rate_score"] / 5,
+                                text=f"영화 평점: {average_score['average_rate_score']:.2f}/5",
+                            )
+                            st.progress(
+                                average_score["average_confidence_score"] / 1,
+                                text=f"감성 분석 신뢰도 평균: {average_score['average_confidence_score']:.2f}",
+                            )
+                        # 리뷰 목록 표시
+                        st.markdown(
+                            f"**{movie['name']} 리뷰** {len(movie['comments'])}명 참여"
                         )
-                    # 리뷰 목록 표시
-                    st.markdown(
-                        f"**{movie['name']} 리뷰** {len(movie['comments'])}명 참여"
-                    )
-                    with st.container(border=True, height=300):
-                        for i, comment in enumerate(movie["comments"][:10]):
-                            with st.container(border=True):
-                                st.markdown(f"작성자: {comment['user_name']}")
-                                st.progress(
-                                    comment["rate_score"] / 5,
-                                    text=f"평점: {comment['rate_score']}/5",
-                                )
-                                st.markdown(f"{comment['comment']}")
-                                st.markdown(f"감성 분석 결과: **{comment['emotion']}**")
-                                st.markdown(
-                                    f"신뢰도 점수: {comment['confidence_score']:.2f}"
-                                )
-                                if st.button(
-                                    "리뷰 삭제",
-                                    key=f"delete_comment_{movie['name']}_{i}",
-                                ):
-                                    delete_response = delete(
-                                        f"{BACKEND_BASE_URL}/movies/comments/delete/{movie['name']}/{comment['user_name']}"
+                        with st.container(border=True, height=300):
+                            for i, comment in enumerate(movie["comments"][:10]):
+                                with st.container(border=True):
+                                    st.markdown(f"작성자: {comment['user_name']}")
+                                    st.progress(
+                                        comment["rate_score"] / 5,
+                                        text=f"평점: {comment['rate_score']}/5",
                                     )
-                                    if delete_response.status_code == 200:
-                                        st.success("리뷰가 성공적으로 삭제되었습니다!")
-                                        time.sleep(1)
-                                        st.rerun()
-                                    else:
-                                        st.error(
-                                            "다음과 같은 이유로 리뷰 삭제에 실패했습니다: "
-                                            + delete_response.text
+                                    st.markdown(f"{comment['comment']}")
+                                    st.markdown(
+                                        f"감성 분석 결과: **{comment['emotion']}**"
+                                    )
+                                    st.markdown(
+                                        f"신뢰도 점수: {comment['confidence_score']:.2f}"
+                                    )
+                                    if st.button(
+                                        "리뷰 삭제",
+                                        key=f"delete_comment_{movie['name']}_{i}",
+                                    ):
+                                        delete_response = delete(
+                                            f"{BACKEND_BASE_URL}/movies/comments/delete/{movie['name']}/{comment['user_name']}"
                                         )
+                                        if delete_response.status_code == 200:
+                                            st.success(
+                                                "리뷰가 성공적으로 삭제되었습니다!"
+                                            )
+                                            time.sleep(1)
+                                            st.rerun()
+                                        else:
+                                            st.error(
+                                                "다음과 같은 이유로 리뷰 삭제에 실패했습니다: "
+                                                + delete_response.text
+                                            )
+                                        # 리뷰 작성 폼
+            with st.form(key=f"comment_form_{movie['name']}"):
+                user_name = st.text_input(
+                    "작성자 이름을 입력해 주세요",
+                    key=f"user_name_input_{movie['name']}",
+                )
+                rate_score = st.slider(
+                    "평점을 매겨주세요",
+                    min_value=1,
+                    max_value=5,
+                    key=f"rate_score_slider_{movie['name']}",
+                )
+                comment = st.text_input(
+                    "리뷰를 작성해 주세요",
+                    key=f"comment_input_{movie['name']}",
+                )
+                if st.form_submit_button(label="리뷰 등록"):
+                    with st.spinner("리뷰를 등록하는 중입니다..."):
+                        response = post(
+                            f"{BACKEND_BASE_URL}/movies/comments/add",
+                            json={
+                                "movie_name": movie["name"],
+                                "user_name": user_name,
+                                "rate_score": rate_score,
+                                "comment": comment,
+                            },
+                        )
+                    if response.status_code == 200:
+                        st.success("리뷰가 성공적으로 등록되었습니다!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(
+                            "다음과 같은 이유로 리뷰 제출에 실패했습니다: "
+                            + response.text
+                        )
             st.markdown("---")
