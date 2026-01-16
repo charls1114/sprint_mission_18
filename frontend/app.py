@@ -73,7 +73,7 @@ else:
     with st.expander(label="영화 목록", icon="🎬", expanded=True):
         for movie in movies:
             # 영화 별 리뷰 섹션
-            col1, col2 = st.columns([1, 3])
+            col1, col2 = st.columns([1, 2])
             with col1:
                 st.subheader(movie["name"])
                 try:
@@ -123,7 +123,7 @@ else:
                             )
 
                 # 영화 리뷰 목록
-                with st.container(border=True):
+                with st.container(border=True, height=400):
                     if len(movie["comments"]) == 0:
                         # 리뷰가 하나도 없을 때
                         st.markdown("**등록된 리뷰가 없습니다.**")
