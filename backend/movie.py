@@ -131,7 +131,7 @@ def analyze_comment_with_openai(text: str) -> tuple[str, float]:
         input=prompt,
     )
     # Responses API에서 텍스트만 추출
-    out = resp.output_text().strip()
+    out = resp.output_text.strip()
 
     # JSON 파싱(안전장치)
     try:
