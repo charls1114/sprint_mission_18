@@ -86,7 +86,7 @@ else:
                 st.markdown(f"###### 장르: {movie['genre']}")
             with col2:
                 # 영화 리뷰 목록
-                with st.container(border=True, height=300):
+                with st.container(border=True, height=500):
                     if len(movie["comments"]) == 0:
                         # 리뷰가 하나도 없을 때
                         st.markdown("**등록된 리뷰가 없습니다.**")
