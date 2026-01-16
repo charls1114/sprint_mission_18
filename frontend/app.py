@@ -147,6 +147,9 @@ else:
                             text=f"감성 분석 신뢰도 평균: {average_score['average_confidence_score']:.2f}",
                         )
                     # 리뷰 목록 표시
+                    st.markdown(
+                        f"**{movie['name']} 리뷰** {len(movie['comments'])}명 참여"
+                    )
                     with st.container(border=True, height=300):
                         for i, comment in enumerate(movie["comments"][:10]):
                             with st.container(border=True):
