@@ -194,12 +194,18 @@ def to_movie_out(movie: MovieDB, session: Session) -> MovieOut:
 # -------------------------------
 @app.get("/movies/get", response_model=List[MovieOut])
 def get_movies(session: Session = Depends(get_session)):
+    """
+    모든 영화와 그에 달린 댓글들을 반환합니다.
+    """
     movies = session.exec(select(MovieDB)).all()
     return [to_movie_out(m, session) for m in movies]
 
 
 @app.post("/movies/add")
 def add_movie(movie: MovieIn, session: Session = Depends(get_session)):
+    """
+    새로운 영화를 추가합니다.
+    """
     exists = session.exec(select(MovieDB).where(MovieDB.name == movie.name)).first()
     if exists:
         raise HTTPException(status_code=400, detail="Movie already exists")
@@ -218,6 +224,9 @@ def add_movie(movie: MovieIn, session: Session = Depends(get_session)):
 
 @app.delete("/movies/delete/{movie_name}")
 def delete_movie(movie_name: str, session: Session = Depends(get_session)):
+    """
+    영화를 삭제합니다. 해당 영화에 달린 댓글들도 함께 삭제됩니다.
+    """
     movie = session.exec(select(MovieDB).where(MovieDB.name == movie_name)).first()
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
@@ -238,6 +247,9 @@ def delete_movie(movie_name: str, session: Session = Depends(get_session)):
 # -------------------------------
 @app.post("/movies/comments/add")
 async def add_comment(comment: CommentIn, session: Session = Depends(get_session)):
+    """
+    새로운 댓글을 추가합니다.
+    """
     movie = session.exec(
         select(MovieDB).where(MovieDB.name == comment.movie_name)
     ).first()
@@ -263,6 +275,9 @@ async def add_comment(comment: CommentIn, session: Session = Depends(get_session
 async def delete_comment(
     movie_name: str, user_name: str, session: Session = Depends(get_session)
 ):
+    """
+    댓글을 삭제합니다.
+    """
     movie = session.exec(select(MovieDB).where(MovieDB.name == movie_name)).first()
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
@@ -284,6 +299,9 @@ async def delete_comment(
 async def compute_average_rating(
     movie_name: str, session: Session = Depends(get_session)
 ):
+    """
+    해당 영화에 달린 댓글들의 평균 평점과 평균 신뢰도를 계산합니다.
+    """
     movie = session.exec(select(MovieDB).where(MovieDB.name == movie_name)).first()
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")

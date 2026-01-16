@@ -79,6 +79,13 @@ else:
                 st.image(img, width=200)
             except:
                 st.error("포스터 이미지를 불러올 수 없습니다.")
+                st.write(
+                    f"status_code: {get(movie['poster_url'], stream=True).status_code}"
+                )
+                st.write(
+                    f"content_type: {get(movie['poster_url'], stream=True).headers['Content-Type']}"
+                )
+                st.write(f"final_url: {get(movie['poster_url'], stream=True).url}")
             st.markdown(f"###### 감독: {movie['director']}")
             st.markdown(f"###### 개봉일: {movie['open_date']}")
             st.markdown(f"###### 장르: {movie['genre']}")
