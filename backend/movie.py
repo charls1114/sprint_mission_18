@@ -1,6 +1,7 @@
 from typing import List, Optional
 import os
 import json
+from dotenv import load_dotenv
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends
@@ -16,7 +17,7 @@ from sqlmodel import (
     select,
 )
 
-
+load_dotenv()
 # -------------------------------
 # DB 설정
 # -------------------------------
@@ -108,6 +109,16 @@ class MovieOut(BaseModel):
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
+def extract_json_block(text: str) -> dict:
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or start > end:
+        raise ValueError("No JSON object found")
+
+    json_str = text[start : end + 1]
+    return json_str
+
+
 def analyze_comment_with_openai(text: str) -> tuple[str, float]:
     """
     returns: (emotion_label, confidence_score)
@@ -131,8 +142,9 @@ def analyze_comment_with_openai(text: str) -> tuple[str, float]:
         input=prompt,
     )
     # Responses API에서 텍스트만 추출
-    out = resp.output_text.strip()
-
+    out = extract_json_block(resp.output_text)
+    print(f"OpenAI 감성 분석 응답: {out}")
+    print(f"데이터 타입: {type(out)}")
     # JSON 파싱(안전장치)
     try:
         data = json.loads(out)
@@ -142,7 +154,8 @@ def analyze_comment_with_openai(text: str) -> tuple[str, float]:
             label = "NEUTRAL"
         confidence = max(0.0, min(1.0, confidence))
         return label, confidence
-    except Exception:
+    except Exception as e:
+        print(f"감성 분석 응답 파싱 오류: {e}")
         # 모델이 JSON을 어겼을 때 fallback
         return "NEUTRAL", 0.5
 
