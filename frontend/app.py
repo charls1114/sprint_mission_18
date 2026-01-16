@@ -123,7 +123,7 @@ else:
                             )
 
                 # 영화 리뷰 목록
-                with st.container(border=True, height=400):
+                with st.container(border=True, height=100):
                     if len(movie["comments"]) == 0:
                         # 리뷰가 하나도 없을 때
                         st.markdown("**등록된 리뷰가 없습니다.**")
