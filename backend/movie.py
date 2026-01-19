@@ -85,16 +85,7 @@ class CommentOut(BaseModel):
     rate_score: int
 
 
-class MovieIn(BaseModel):
-    name: str
-    director: str
-    open_date: str
-    genre: str
-    poster_url: str
-    comments: List[CommentOut] = []  # 프론트가 보내는 필드 호환용
-
-
-class MovieOut(BaseModel):
+class Movie(BaseModel):
     name: str
     director: str
     open_date: str
@@ -107,6 +98,11 @@ class MovieOut(BaseModel):
 # 감성 분석 모델
 # -------------------------------
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+
+def get_movie_comments(movie_id: int, session: Session) -> List[CommentDB]:
+    """영화의 모든 댓글을 조회합니다."""
+    return session.exec(select(CommentDB).where(CommentDB.movie_id == movie_id)).all()
 
 
 def extract_json_block(text: str) -> dict:
@@ -162,27 +158,18 @@ def analyze_comment_with_openai(text: str) -> tuple[str, float]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global model
     # 테이블 생성 (운영에선 migration이 이상적이지만, 과제/프로토타입엔 충분)
     SQLModel.metadata.create_all(engine)
     yield
     print("Shutting down.")
-    model = None
 
 
 app = FastAPI(lifespan=lifespan)
 
 
-def analyze_comment(text: str):
-    result = model(text)[0]
-    return result["label"], float(result["score"])
-
-
-def to_movie_out(movie: MovieDB, session: Session) -> MovieOut:
-    comments = session.exec(
-        select(CommentDB).where(CommentDB.movie_id == movie.id)
-    ).all()
-    return MovieOut(
+def to_movie_out(movie: MovieDB, session: Session) -> Movie:
+    comments = get_movie_comments(movie.id, session)
+    return Movie(
         name=movie.name,
         director=movie.director,
         open_date=movie.open_date,
@@ -205,7 +192,7 @@ def to_movie_out(movie: MovieDB, session: Session) -> MovieOut:
 # -------------------------------
 # 영화 API (기존 경로 유지)
 # -------------------------------
-@app.get("/movies/get", response_model=List[MovieOut])
+@app.get("/movies/get", response_model=List[Movie])
 def get_movies(session: Session = Depends(get_session)):
     """
     모든 영화와 그에 달린 댓글들을 반환합니다.
@@ -215,7 +202,7 @@ def get_movies(session: Session = Depends(get_session)):
 
 
 @app.post("/movies/add")
-def add_movie(movie: MovieIn, session: Session = Depends(get_session)):
+def add_movie(movie: Movie, session: Session = Depends(get_session)):
     """
     새로운 영화를 추가합니다.
     """
@@ -244,9 +231,7 @@ def delete_movie(movie_name: str, session: Session = Depends(get_session)):
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    comments = session.exec(
-        select(CommentDB).where(CommentDB.movie_id == movie.id)
-    ).all()
+    comments = get_movie_comments(movie.id, session)
     for c in comments:
         session.delete(c)
 
@@ -259,7 +244,7 @@ def delete_movie(movie_name: str, session: Session = Depends(get_session)):
 # 댓글 API (기존 경로 유지)
 # -------------------------------
 @app.post("/movies/comments/add")
-async def add_comment(comment: CommentIn, session: Session = Depends(get_session)):
+def add_comment(comment: CommentIn, session: Session = Depends(get_session)):
     """
     새로운 댓글을 추가합니다.
     """
@@ -285,7 +270,7 @@ async def add_comment(comment: CommentIn, session: Session = Depends(get_session
 
 
 @app.delete("/movies/comments/delete/{movie_name}/{user_name}")
-async def delete_comment(
+def delete_comment(
     movie_name: str, user_name: str, session: Session = Depends(get_session)
 ):
     """
@@ -309,9 +294,7 @@ async def delete_comment(
 
 
 @app.post("/movies/comments/{movie_name}/average_score")
-async def compute_average_rating(
-    movie_name: str, session: Session = Depends(get_session)
-):
+def compute_average_rating(movie_name: str, session: Session = Depends(get_session)):
     """
     해당 영화에 달린 댓글들의 평균 평점과 평균 신뢰도를 계산합니다.
     """
@@ -319,9 +302,7 @@ async def compute_average_rating(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    comments = session.exec(
-        select(CommentDB).where(CommentDB.movie_id == movie.id)
-    ).all()
+    comments = get_movie_comments(movie.id, session)
     if len(comments) == 0:
         return {"average_rate_score": 0.0, "average_confidence_score": 0.0}
 
